@@ -28,6 +28,18 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import io.opentelemetry.semconv.resource.attributes.ResourceAttributes;
+
 /** A simple client that requests ads from the Ads Service. */
 public class AdServiceClient {
 
@@ -35,6 +47,21 @@ public class AdServiceClient {
 
   private final ManagedChannel channel;
   private final hipstershop.AdServiceGrpc.AdServiceBlockingStub blockingStub;
+
+  private static final OpenTelemetry openTelemetry = initOpenTelemetry();
+
+  private static OpenTelemetry initOpenTelemetry() {
+    Resource resource = Resource.getDefault().merge(Resource.create(Attributes.of(ResourceAttributes.SERVICE_NAME, "AdServiceClient")));
+    SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+        .addSpanProcessor(BatchSpanProcessor.builder(OtlpGrpcSpanExporter.builder().build()).build())
+        .setResource(resource)
+        .build();
+    OpenTelemetrySdk openTelemetrySdk = OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).build();
+    GlobalOpenTelemetry.set(openTelemetrySdk);
+    return openTelemetrySdk;
+  }
+
+  private static final Tracer tracer = openTelemetry.getTracer("AdServiceClient");
 
   /** Construct client connecting to Ad Service at {@code host:port}. */
   private AdServiceClient(String host, int port) {
@@ -62,14 +89,19 @@ public class AdServiceClient {
     AdRequest request = AdRequest.newBuilder().addContextKeys(contextKey).build();
     AdResponse response;
 
-    try {
-      response = blockingStub.getAds(request);
-    } catch (StatusRuntimeException e) {
-      logger.log(Level.WARN, "RPC failed: " + e.getStatus());
-      return;
-    } 
-    for (Ad ads : response.getAdsList()) {
-      logger.info("Ads: " + ads.getText());
+    Span span = tracer.spanBuilder("getAds").startSpan();
+    try (Scope scope = span.makeCurrent()) {
+      try {
+        response = blockingStub.getAds(request);
+      } catch (StatusRuntimeException e) {
+        logger.log(Level.WARN, "RPC failed: " + e.getStatus());
+        return;
+      } 
+      for (Ad ads : response.getAdsList()) {
+        logger.info("Ads: " + ads.getText());
+      }
+    } finally {
+      span.end();
     }
   }
 
