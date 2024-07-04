@@ -12,29 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# https://mcr.microsoft.com/product/dotnet/sdk
-FROM mcr.microsoft.com/dotnet/sdk:8.0.302-noble@sha256:bd836d1c4a19860ee61d1202b82561f0c750edb7a635443cb001042b71d79569 as builder
+FROM mcr.microsoft.com/dotnet/sdk:8.0@sha256:3189e564f19e016a43838a46609fc81349f07322fdf6bc3299bd13f0dca9e647 AS build
 WORKDIR /app
-COPY cartservice.csproj .
-RUN dotnet restore cartservice.csproj \
-    -r linux-x64
 COPY . .
-RUN dotnet publish cartservice.csproj \
-    -p:PublishSingleFile=true \
-    -r linux-x64 \
-    --self-contained true \
-    -p:PublishTrimmed=true \
-    -p:TrimMode=full \
-    -c release \
-    -o /cartservice
+RUN dotnet restore cartservice.csproj
+RUN dotnet build "./cartservice.csproj" -c Debug -o /out
 
-# https://mcr.microsoft.com/product/dotnet/runtime-deps
-FROM mcr.microsoft.com/dotnet/runtime-deps:8.0.6-noble-chiseled@sha256:55d6e41f2e7687c597daa4fdca997b07beb3e23b6283729e19bb8ceb272def1a
+FROM build AS publish
+RUN dotnet publish cartservice.csproj -c Debug -o /out
 
+# Building final image used in running container
+FROM mcr.microsoft.com/dotnet/aspnet:8.0@sha256:7882d3eee2527584cc9db7b2f26540c27dba4462ec565b8cb160a44874a65b97 AS final
+# Installing procps on the container to enable debugging of .NET Core
+RUN apt-get update \
+    && apt-get install -y unzip procps wget
 WORKDIR /app
-COPY --from=builder /cartservice .
-EXPOSE 7070
-ENV DOTNET_EnableDiagnostics=0 \
-    ASPNETCORE_HTTP_PORTS=7070
-USER 1000
-ENTRYPOINT ["/app/cartservice"]
+COPY --from=publish /out .
+ENV ASPNETCORE_HTTP_PORTS=7070
+
+ENTRYPOINT ["dotnet", "cartservice.dll"]
