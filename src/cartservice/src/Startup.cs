@@ -10,6 +10,11 @@ using Microsoft.Extensions.Hosting;
 using cartservice.cartstore;
 using cartservice.services;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
+using OpenTelemetry;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Logs;
 
 namespace cartservice
 {
@@ -55,6 +60,45 @@ namespace cartservice
                 services.AddSingleton<ICartStore, RedisCartStore>();
             }
 
+            services.AddOpenTelemetryTracing(builder =>
+            {
+                builder
+                    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("cartservice"))
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddGrpcClientInstrumentation()
+                    .AddOtlpExporter(options =>
+                    {
+                        options.Endpoint = new Uri("https://tempo.grafana.net:443");
+                        options.Headers = "Authorization=Basic YOUR_GRAFANA_TEMPO_USERNAME:YOUR_GRAFANA_TEMPO_PASSWORD";
+                    });
+            });
+
+            services.AddOpenTelemetryMetrics(builder =>
+            {
+                builder
+                    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("cartservice"))
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddOtlpExporter(options =>
+                    {
+                        options.Endpoint = new Uri("https://mimir.grafana.net:443");
+                        options.Headers = "Authorization=Basic YOUR_GRAFANA_MIMIR_USERNAME:YOUR_GRAFANA_MIMIR_PASSWORD";
+                    });
+            });
+
+            services.AddLogging(loggingBuilder =>
+            {
+                loggingBuilder.AddOpenTelemetry(options =>
+                {
+                    options.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("cartservice"));
+                    options.AddOtlpExporter(otlpOptions =>
+                    {
+                        otlpOptions.Endpoint = new Uri("https://loki.grafana.net:443");
+                        otlpOptions.Headers = "Authorization=Basic YOUR_GRAFANA_LOKI_USERNAME:YOUR_GRAFANA_LOKI_PASSWORD";
+                    });
+                });
+            });
 
             services.AddGrpc();
         }

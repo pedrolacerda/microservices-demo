@@ -61,6 +61,18 @@ else {
   logger.info("Tracing disabled.")
 }
 
+if(process.env.ENABLE_PROFILING == "1") {
+  logger.info("Profiling enabled.")
+  const { Pyroscope } = require('@pyroscope/nodejs');
+  Pyroscope.init({
+    appName: 'paymentservice',
+    serverAddress: process.env.PYROSCOPE_SERVER_ADDR,
+    authToken: process.env.PYROSCOPE_AUTH_TOKEN,
+  });
+}
+else {
+  logger.info("Profiling disabled.")
+}
 
 const path = require('path');
 const HipsterShopServer = require('./server');

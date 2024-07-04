@@ -142,16 +142,48 @@ data:
     exporters:
       googlecloud:
         project: {{ .Values.opentelemetryCollector.projectId | quote }}
+      grafana_tempo:
+        endpoint: "tempo.grafana.net:443"
+        auth:
+          basic:
+            username: "YOUR_GRAFANA_TEMPO_USERNAME"
+            password: "YOUR_GRAFANA_TEMPO_PASSWORD"
+      grafana_mimir:
+        endpoint: "mimir.grafana.net:443"
+        auth:
+          basic:
+            username: "YOUR_GRAFANA_MIMIR_USERNAME"
+            password: "YOUR_GRAFANA_MIMIR_PASSWORD"
+      grafana_loki:
+        endpoint: "loki.grafana.net:443"
+        auth:
+          basic:
+            username: "YOUR_GRAFANA_LOKI_USERNAME"
+            password: "YOUR_GRAFANA_LOKI_PASSWORD"
+      pyroscope:
+        endpoint: "pyroscope.grafana.net:443"
+        auth:
+          basic:
+            username: "YOUR_PYROSCOPE_USERNAME"
+            password: "YOUR_PYROSCOPE_PASSWORD"
     service:
       pipelines:
         traces:
           receivers: [otlp] # Receive otlp-formatted data from other collector instances
           processors: []
-          exporters: [googlecloud] # Export traces directly to Google Cloud
+          exporters: [grafana_tempo] # Export traces to Grafana Tempo
         metrics:
           receivers: [otlp]
           processors: []
-          exporters: [googlecloud] # Export metrics to Google Cloud
+          exporters: [grafana_mimir] # Export metrics to Grafana Mimir
+        logs:
+          receivers: [otlp]
+          processors: []
+          exporters: [grafana_loki] # Export logs to Grafana Loki
+        profiles:
+          receivers: [otlp]
+          processors: []
+          exporters: [pyroscope] # Export profiles to Pyroscope
 {{- if .Values.networkPolicies.create }}
 ---
 apiVersion: networking.k8s.io/v1

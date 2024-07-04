@@ -34,6 +34,7 @@ from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient, GrpcInstr
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from pyroscope import configure, start
 
 from logger import getJSONLogger
 logger = getJSONLogger('recommendationservice-server')
@@ -123,6 +124,17 @@ if __name__ == "__main__":
         logger.info("Tracing disabled.")
     except Exception as e:
         logger.warn(f"Exception on Cloud Trace setup: {traceback.format_exc()}, tracing disabled.") 
+
+    if os.environ["ENABLE_PROFILING"] == "1":
+        logger.info("Profiling enabled.")
+        configure(
+            application_name="recommendationservice",
+            server_address=os.getenv("PYROSCOPE_SERVER_ADDR", "http://localhost:4040"),
+            auth_token=os.getenv("PYROSCOPE_AUTH_TOKEN", ""),
+        )
+        start()
+    else:
+        logger.info("Profiling disabled.")
 
     port = os.environ.get('PORT', "8080")
     catalog_addr = os.environ.get('PRODUCT_CATALOG_SERVICE_ADDR', '')
