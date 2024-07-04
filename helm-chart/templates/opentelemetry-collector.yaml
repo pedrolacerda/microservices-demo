@@ -141,7 +141,7 @@ data:
     processors:
     exporters:
       googlecloud:
-        project: {{ .Values.opentelemetryCollector.projectId | quote }}
+        project: {{ .Values.opentelemetryCollector.projectId | quote }} #maybe remove
       grafana_tempo:
         endpoint: "tempo.grafana.net:443"
         auth:
