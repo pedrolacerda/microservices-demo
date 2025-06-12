@@ -10,8 +10,8 @@
   "author": "Jonathan Lui",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/profiler": "6.0.1",
-    "@grpc/grpc-js": "1.10.10",
+    "@google-cloud/profiler": "6.0.3",
+    "@grpc/grpc-js": "1.10.11",
     "@grpc/proto-loader": "0.7.13",
     "@opentelemetry/api": "1.9.0",
     "@opentelemetry/exporter-otlp-grpc": "0.26.0",
